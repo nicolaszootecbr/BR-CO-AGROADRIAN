@@ -21,7 +21,7 @@ export const AuditLaudo = forwardRef<HTMLDivElement, AuditLaudoProps>(({ bio, re
   const reqEM = (reqs.ndt / 1000) * 4.409 * 0.82; // Estimativa de exigência de EM em Mcal/dia
 
   return (
-    <div ref={ref} className="bg-white text-black w-[210mm] min-h-[297mm] p-8 mx-auto relative flex flex-col font-sans">
+    <div ref={ref} className="bg-white text-black w-[210mm] min-h-[297mm] p-8 mx-auto relative flex flex-col font-sans" style={{ boxSizing: 'border-box' }}>
       <div className="flex-grow">
         {/* Header */}
         <div className="text-center border-b-2 border-black pb-6 mb-6">

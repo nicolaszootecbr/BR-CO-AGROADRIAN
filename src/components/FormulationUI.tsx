@@ -4,7 +4,7 @@ import { calculateRequirements, analyzeDiet } from '../services/engine';
 import { solveDiet } from '../services/solver';
 import { AlertCircle, CheckCircle2, AlertTriangle, Calculator, FileText, X, Loader2 } from 'lucide-react';
 import { AuditLaudo } from './AuditLaudo';
-import html2pdf from 'html2pdf.js';
+import { exportElementToPdf } from '../services/pdfService';
 
 interface FormulationUIProps {
   bio: Biometrics;
@@ -61,28 +61,17 @@ export const FormulationUI: React.FC<FormulationUIProps> = ({ bio, ingredients, 
     setIsGeneratingPDF(true);
     
     try {
-      const element = laudoRef.current;
-      
-      // Temporarily make it visible for html2pdf to capture it properly
-      element.style.display = 'flex';
-      
-      const opt: any = {
-        margin: 10,
-        filename: `Laudo_Tecnico_AgroAdrian_${bio.species}_${new Date().toLocaleDateString()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
+      const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      await exportElementToPdf(laudoRef.current, {
+        filename: `Laudo_Tecnico_AgroAdrian_${bio.species}_${dateStr}`,
+        orientation: 'portrait',
+        format: 'a4',
+        margin: 8
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar o PDF. Tente novamente.');
+      alert('Erro ao gerar o PDF. Se o problema persistir, tente novamente ou utilize a impressão direta do navegador.');
     } finally {
-      // Hide it again
-      if (laudoRef.current) {
-        laudoRef.current.style.display = 'none';
-      }
       setIsGeneratingPDF(false);
     }
   };
@@ -610,9 +599,12 @@ export const FormulationUI: React.FC<FormulationUIProps> = ({ bio, ingredients, 
         </div>
       )}
       
-      {/* Hidden container for PDF generation */}
+      {/* Off-screen container for PDF generation */}
       {reqs && analysis && (
-        <div style={{ display: 'none' }}>
+        <div 
+          className="fixed top-0 left-[-99999px] z-[-9999] pointer-events-none opacity-100"
+          aria-hidden="true"
+        >
           <AuditLaudo 
             ref={laudoRef}
             bio={bio}

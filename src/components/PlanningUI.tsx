@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Target, Calendar, Info, TrendingUp, AlertTriangle, DollarSign, Lightbulb, ArrowLeft, Download, PieChart, Package, FileText } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+import { Target, Calendar, Info, TrendingUp, AlertTriangle, DollarSign, Lightbulb, ArrowLeft, Download, PieChart, Package, FileText, Loader2 } from 'lucide-react';
+import { exportElementToPdf } from '../services/pdfService';
 import { Biometrics, Ingredient, Diet } from '../types';
 import { calculateRequirements } from '../services/engine';
 import { solveDiet } from '../services/solver';
@@ -163,27 +163,17 @@ export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }
     setIsGeneratingPDF(true);
     
     try {
-      const element = pdfRef.current;
-      
-      // Temporarily make it visible for html2pdf
-      element.style.display = 'block';
-      
-      const opt: any = {
-        margin: 10,
-        filename: `Plano_Confinamento_AgroAdrian_${bio.species}_${new Date().toLocaleDateString()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
+      const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      await exportElementToPdf(pdfRef.current, {
+        filename: `Plano_Confinamento_AgroAdrian_${bio.species}_${dateStr}`,
+        orientation: 'landscape',
+        format: 'a4',
+        margin: 8
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Erro ao gerar o PDF. Tente novamente.');
+      alert('Erro ao gerar o PDF. Se o problema persistir, tente novamente ou utilize a impressão direta do navegador.');
     } finally {
-      if (pdfRef.current) {
-        pdfRef.current.style.display = 'none';
-      }
       setIsGeneratingPDF(false);
     }
   };
@@ -219,8 +209,17 @@ export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }
             disabled={isGeneratingPDF}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-50"
           >
-            <FileText size={18} />
-            {isGeneratingPDF ? 'Gerando...' : 'Baixar Plano de Confinamento - PDF'}
+            {isGeneratingPDF ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                <span>Gerando PDF...</span>
+              </>
+            ) : (
+              <>
+                <FileText size={18} />
+                <span>Baixar Plano de Confinamento - PDF</span>
+              </>
+            )}
           </button>
         )}
       </div>
@@ -434,8 +433,11 @@ export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }
         </div>
       )}
 
-      {/* Hidden PDF Container */}
-      <div style={{ display: 'none' }}>
+      {/* Off-screen PDF Template Container */}
+      <div 
+        className="fixed top-0 left-[-99999px] z-[-9999] pointer-events-none opacity-100"
+        aria-hidden="true"
+      >
         <div 
           id="planning-pdf-report" 
           ref={pdfRef} 
