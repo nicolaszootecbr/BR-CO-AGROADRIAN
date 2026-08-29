@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Biometrics, Diet, Ingredient, Requirements, DietAnalysis } from '../types';
 import { calculateRequirements, analyzeDiet } from '../services/engine';
 import { solveDiet } from '../services/solver';
-import { AlertCircle, CheckCircle2, AlertTriangle, Calculator, FileText, X, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, AlertTriangle, Calculator, FileText, X, Loader2, ArrowLeft } from 'lucide-react';
 import { AuditLaudo } from './AuditLaudo';
 import { exportElementToPdf } from '../services/pdfService';
 
@@ -301,47 +301,70 @@ export const FormulationUI: React.FC<FormulationUIProps> = ({ bio, ingredients, 
       {/* Esquerda: Painel de Inclusão */}
       <div className="lg:col-span-1 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-zinc-900 p-4 rounded-2xl shadow-lg border border-zinc-800 gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-100">Formulação</h2>
-            <p className="text-sm text-zinc-400">
-              {bio.species} • {bio.biotype} • {bio.pc}kg • {bio.gmd}g/dia
-            </p>
-            {bio.sexClass === 'Fêmea' && (bio.isPregnant || bio.isLactating) && (
-              <p className="text-xs text-lime-400 mt-1 font-medium">
-                Prioridade Reprodutiva Ativada: Ganho de peso desabilitado.
-              </p>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button 
+                onClick={onBack}
+                className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors border border-zinc-800"
+                title="Voltar ao Setup"
+              >
+                <ArrowLeft size={18} />
+              </button>
             )}
+            <div>
+              <h2 className="text-xl font-bold text-zinc-100">Formulação</h2>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                {bio.species} • {bio.biotype} • {bio.pc}kg • {bio.gmd}g/dia
+              </p>
+              {bio.sexClass === 'Fêmea' && (bio.isPregnant || bio.isLactating) && (
+                <p className="text-xs text-lime-400 mt-1 font-medium">
+                  Prioridade Reprodutiva Ativada
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <button onClick={() => setViewMN(!viewMN)} className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700">
+            <button onClick={() => setViewMN(!viewMN)} className="flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-semibold bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700">
               Ver em {viewMN ? 'MS (%)' : 'MN (kg)'}
             </button>
           </div>
         </div>
 
-        {/* Swipeable Action Bar */}
-        <div 
-          className="flex w-full overflow-x-auto gap-3 pb-2 snap-x snap-mandatory scrollbar-hide touch-pan-x"
-          style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}
-        >
-          <button onClick={handleSolve} className="flex-shrink-0 snap-start px-5 py-2.5 bg-zinc-800 text-lime-400 font-semibold rounded-full border border-zinc-700 shadow-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors whitespace-nowrap">
-            <Calculator size={18} />
-            Otimizar Dieta
+        {/* Action Bar - Clean 3-button grid visible on both PC and mobile */}
+        <div className="grid grid-cols-3 gap-2">
+          <button 
+            onClick={handleSolve} 
+            className="px-2 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-lime-400 font-semibold rounded-xl border border-zinc-700 shadow-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-colors text-xs text-center"
+            title="Otimizar dieta pelo Solver"
+          >
+            <Calculator size={16} className="shrink-0" />
+            <span className="truncate">Otimizar</span>
           </button>
           <button 
             onClick={() => setShowModal(true)}
-            className="flex-shrink-0 snap-start px-5 py-2.5 bg-zinc-800 text-lime-400 font-semibold rounded-full border border-zinc-700 shadow-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors whitespace-nowrap"
+            className="px-2 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold rounded-xl border border-zinc-700 shadow-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-colors text-xs text-center"
+            title="Ver proporções da Bateia em 100kg MN"
           >
-            <FileText size={18} />
-            Gerar Receita
+            <FileText size={16} className="shrink-0 text-zinc-400" />
+            <span className="truncate">Receita</span>
           </button>
           <button 
             onClick={handleDownloadPDF} 
             disabled={isGeneratingPDF}
-            className="flex-shrink-0 snap-start px-5 py-2.5 bg-zinc-800 text-lime-400 font-semibold rounded-full border border-zinc-700 shadow-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl border border-blue-500 shadow-sm flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-colors text-xs text-center shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Exportar Laudo Técnico em PDF"
           >
-            {isGeneratingPDF ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-            {isGeneratingPDF ? 'Gerando...' : 'Laudo Técnico'}
+            {isGeneratingPDF ? (
+              <>
+                <Loader2 size={16} className="animate-spin shrink-0" />
+                <span className="truncate">Gerando...</span>
+              </>
+            ) : (
+              <>
+                <FileText size={16} className="shrink-0" />
+                <span className="truncate">Laudo PDF</span>
+              </>
+            )}
           </button>
         </div>
 
@@ -602,8 +625,9 @@ export const FormulationUI: React.FC<FormulationUIProps> = ({ bio, ingredients, 
       {/* Off-screen container for PDF generation */}
       {reqs && analysis && (
         <div 
-          className="fixed top-0 left-[-99999px] z-[-9999] pointer-events-none opacity-100"
+          className="fixed top-0 left-0 z-[-9999] opacity-0 pointer-events-none overflow-hidden"
           aria-hidden="true"
+          style={{ width: '210mm' }}
         >
           <AuditLaudo 
             ref={laudoRef}

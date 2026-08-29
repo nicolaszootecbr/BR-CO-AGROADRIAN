@@ -1,6 +1,6 @@
 /**
  * Robust PDF Generation Service for BR-CO AgroAdrian
- * Designed to prevent crashes, bundle issues, and 0-dimension canvas errors in production (Vercel/Vite).
+ * Optimized for Vercel/Vite production builds with memory-safe coordinate bounds.
  */
 
 interface PDFExportOptions {
@@ -31,7 +31,7 @@ async function loadHtml2Pdf(): Promise<any> {
 }
 
 /**
- * Robustly exports a DOM element to PDF with offscreen sandbox rendering and fallback
+ * Robustly exports a DOM element to PDF with memory-safe sandbox rendering and fallback
  */
 export async function exportElementToPdf(
   sourceElement: HTMLElement,
@@ -53,24 +53,26 @@ export async function exportElementToPdf(
     }
   }
 
-  // 2. Clone the element into an isolated off-screen sandbox
-  // This guarantees positive clientWidth/clientHeight, avoids display:none issues,
-  // and prevents visual artifacts or flashing on the user's screen.
+  // 2. Clone the element into an isolated sandbox positioned at (0, 0) behind the view
+  // NOTE: Using top: 0; left: 0 (instead of -99999px) prevents html2canvas from computing
+  // giant canvas offsets that exhaust browser RAM and freeze the main thread.
   const targetWidthMm = orientation === 'landscape' ? 297 : 210;
+  const targetWidthPx = Math.round(targetWidthMm * 3.7795); // ~1122px landscape, ~794px portrait
+
   const container = document.createElement('div');
-  container.id = 'pdf-sandbox-container';
+  container.id = `pdf-sandbox-${Date.now()}`;
   container.style.position = 'fixed';
   container.style.top = '0';
-  container.style.left = '-99999px';
-  container.style.zIndex = '-99999';
+  container.style.left = '0';
   container.style.width = `${targetWidthMm}mm`;
   container.style.minHeight = orientation === 'landscape' ? '210mm' : '297mm';
+  container.style.zIndex = '-9999';
+  container.style.opacity = '0';
+  container.style.pointerEvents = 'none';
+  container.style.overflow = 'hidden';
   container.style.backgroundColor = '#ffffff';
   container.style.color = '#000000';
   container.style.boxSizing = 'border-box';
-  container.style.opacity = '1';
-  container.style.visibility = 'visible';
-  container.style.pointerEvents = 'none';
 
   // Clone source DOM
   const clone = sourceElement.cloneNode(true) as HTMLElement;
@@ -79,12 +81,13 @@ export async function exportElementToPdf(
   clone.style.opacity = '1';
   clone.style.width = '100%';
   clone.style.boxSizing = 'border-box';
+  clone.style.margin = '0';
 
   container.appendChild(clone);
   document.body.appendChild(container);
 
-  // Force layout calculation
-  const _forceReflow = container.offsetHeight;
+  // Force synchronous layout calculation
+  const _reflow = container.offsetHeight;
 
   try {
     const html2pdf = await loadHtml2Pdf();
@@ -92,35 +95,38 @@ export async function exportElementToPdf(
     const opt = {
       margin: margin,
       filename: filename.endsWith('.pdf') ? filename : `${filename}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg', quality: 0.95 },
       html2canvas: {
-        scale: 2,
+        scale: 1.5, // 1.5x gives high quality without exhausting browser memory
         useCORS: true,
         allowTaint: true,
         logging: false,
         scrollX: 0,
         scrollY: 0,
+        x: 0,
+        y: 0,
         backgroundColor: '#ffffff',
-        windowWidth: container.scrollWidth || (targetWidthMm * 3.7795)
+        windowWidth: targetWidthPx
       },
       jsPDF: {
         unit: 'mm',
         format: format,
-        orientation: orientation
+        orientation: orientation,
+        compress: true
       }
     };
 
-    // Timeout race to prevent hanging UI
+    // Timeout race (30s) to prevent hanging UI
     const pdfPromise = html2pdf().set(opt).from(clone).save();
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Tempo limite excedido na geração do PDF.')), 25000)
+      setTimeout(() => reject(new Error('Tempo limite excedido na geração do PDF.')), 30000)
     );
 
     await Promise.race([pdfPromise, timeoutPromise]);
   } catch (error) {
     console.error('Erro na exportação via html2pdf:', error);
     
-    // Fallback: Trigger browser print window with clean styles if html2pdf fails
+    // Fallback: Trigger browser print window with clean styles if html2canvas/jsPDF fails
     const userWantsPrint = window.confirm(
       'Houve uma instabilidade na conversão gráfica do PDF. Deseja abrir a visualização de impressão do navegador para salvar como PDF diretamente?'
     );
@@ -131,9 +137,13 @@ export async function exportElementToPdf(
       throw error;
     }
   } finally {
-    // Clean up sandbox DOM
+    // Clean up sandbox DOM safely
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
+    }
+    // Ensure body styles were not modified
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.style.removeProperty('overflow');
     }
   }
 }
@@ -150,6 +160,7 @@ function triggerPrintFallback(contentElement: HTMLElement, orientation: 'portrai
     iframe.style.width = '0';
     iframe.style.height = '0';
     iframe.style.border = '0';
+    iframe.style.zIndex = '-9999';
     document.body.appendChild(iframe);
 
     const doc = iframe.contentWindow?.document;

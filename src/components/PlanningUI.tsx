@@ -9,6 +9,7 @@ interface PlanningUIProps {
   bio: Biometrics;
   ingredients: Ingredient[];
   diet: Diet;
+  onBack?: () => void;
 }
 
 interface PhaseData {
@@ -25,7 +26,7 @@ interface PhaseData {
   };
 }
 
-export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }) => {
+export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet, onBack }) => {
   const [targetWeight, setTargetWeight] = useState<number>(bio.pc + 15);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -198,9 +199,20 @@ export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div className="flex items-center gap-2 text-zinc-100">
-          <TrendingUp className="text-lime-400" size={24} />
-          <h2 className="text-2xl font-bold">Painel de Simulação</h2>
+        <div className="flex items-center gap-3 text-zinc-100">
+          {onBack && (
+            <button 
+              onClick={onBack}
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors border border-zinc-800"
+              title="Voltar à Formulação"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <TrendingUp className="text-lime-400" size={24} />
+            <h2 className="text-2xl font-bold">Painel de Simulação</h2>
+          </div>
         </div>
         
         {financialSummary && (
@@ -435,8 +447,9 @@ export const PlanningUI: React.FC<PlanningUIProps> = ({ bio, ingredients, diet }
 
       {/* Off-screen PDF Template Container */}
       <div 
-        className="fixed top-0 left-[-99999px] z-[-9999] pointer-events-none opacity-100"
+        className="fixed top-0 left-0 z-[-9999] opacity-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
+        style={{ width: '277mm' }}
       >
         <div 
           id="planning-pdf-report" 

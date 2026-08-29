@@ -116,7 +116,8 @@ export default function App() {
           <PlanningUI 
             bio={bio} 
             ingredients={ingredients} 
-            diet={diet} 
+            diet={diet}
+            onBack={() => setActiveTab('formulation')}
           />
         )}
         
